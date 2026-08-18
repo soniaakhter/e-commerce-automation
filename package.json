@@ -1,0 +1,28 @@
+{
+  "name": "automation-exercise-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright and TypeScript UI/API automation for Automation Exercise",
+  "scripts": {
+    "test": "playwright test --project=api --project=chromium",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:smoke": "playwright test --project=api --project=chromium --grep @smoke",
+    "test:regression": "playwright test --project=api --project=chromium --grep @regression",
+    "test:api": "playwright test tests/api --project=api",
+    "test:cross-browser:smoke": "playwright test --project=firefox --project=webkit --grep @smoke",
+    "test:ci": "playwright test --project=api --project=chromium",
+    "typecheck": "tsc --noEmit",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0",
+    "dotenv": "^17.4.2",
+    "typescript": "^7.0.2"
+  }
+}

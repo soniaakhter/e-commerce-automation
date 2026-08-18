@@ -1,0 +1,1 @@
+Safe, non-sensitive dummy file used by Playwright Contact Us tests.
