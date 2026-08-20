@@ -1,42 +1,80 @@
-- name: Configure SSH
-  shell: bash
-  run: |
-    mkdir -p ~/.ssh
+name: Deploy Playwright Report to VPS
 
-    echo "${{ secrets.VPS_SSH_KEY_B64 }}" \
-      | base64 --decode \
-      > ~/.ssh/deploy_key
+on:
+  workflow_run:
+    workflows:
+      - Playwright Tests
+    types:
+      - completed
 
-    chmod 600 ~/.ssh/deploy_key
+permissions:
+  contents: read
+  actions: read
 
-    ssh-keyscan -H "${{ secrets.VPS_HOST }}" \
-      >> ~/.ssh/known_hosts
+jobs:
+  deploy:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
 
-- name: Validate SSH private key
-  run: |
-    ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+    runs-on: ubuntu-latest
 
-- name: Test VPS connection
-  run: |
-    ssh \
-      -o BatchMode=yes \
-      -o ConnectTimeout=10 \
-      -i ~/.ssh/deploy_key \
-      "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-      "echo 'SSH connection successful'"
+    steps:
+      - name: Download Playwright report
+        uses: actions/download-artifact@v5
+        with:
+          name: playwright-report-cross-browser
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: playwright-report
 
-- name: Clear old report
-  run: |
-    ssh \
-      -o BatchMode=yes \
-      -i ~/.ssh/deploy_key \
-      "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-      "rm -rf /var/www/playwright-report/*"
+      - name: Configure SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
 
-- name: Deploy latest report
-  run: |
-    scp \
-      -o BatchMode=yes \
-      -i ~/.ssh/deploy_key \
-      -r playwright-report/. \
-      "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/playwright-report/"
+          echo "${{ secrets.VPS_SSH_KEY_B64 }}" \
+            | base64 --decode \
+            > ~/.ssh/deploy_key
+
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" \
+            >> ~/.ssh/known_hosts
+
+      - name: Validate SSH private key
+        run: |
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+
+      - name: Test VPS connection
+        run: |
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -i ~/.ssh/deploy_key \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "echo 'SSH connection successful'"
+
+      - name: Clear old Playwright report
+        run: |
+          ssh \
+            -o BatchMode=yes \
+            -i ~/.ssh/deploy_key \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "rm -rf /var/www/playwright-report/*"
+
+      - name: Deploy latest Playwright report
+        run: |
+          scp \
+            -o BatchMode=yes \
+            -i ~/.ssh/deploy_key \
+            -r playwright-report/. \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/playwright-report/"
+
+      - name: Verify deployment
+        run: |
+          ssh \
+            -o BatchMode=yes \
+            -i ~/.ssh/deploy_key \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "test -f /var/www/playwright-report/index.html && echo 'Deployment successful'"
